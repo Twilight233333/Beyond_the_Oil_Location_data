@@ -1,0 +1,124 @@
+----------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/jiaxuan/Desktop/teat/12391802 Extension Figure2.log
+  log type:  text
+ opened on:   7 Dec 2023, 13:01:29
+
+. 
+. global dir "/Users/jiaxuan/Desktop/Replication HW"
+
+. 
+. global raw "$dir/raw_data"
+
+. global gen "$dir/generated_data"
+
+. global aux "$dir/generated_data/auxiliary_data"
+
+. global tab "$dir/raw_tables"
+
+. global edit_tab "$dir/Tex/tables"
+
+. 
+. *************************************
+. * LOAD AND TIDY DATA
+. *************************************
+. use dataset, replace 
+
+. 
+. * label variables
+. label variable on_conf onset_conflict
+
+. label variable escal escalation
+
+. label variable deescal de_escalation
+
+. 
+. * merge with my own data
+. merge 1:1 code year using "$dir/Oil_difficulty.dta"
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                         5,031
+        from master                     4,731  (_merge==1)
+        from using                        300  (_merge==2)
+
+    Matched                             1,653  (_merge==3)
+    -----------------------------------------
+
+. drop if _merge == 2
+(300 observations deleted)
+
+. drop _merge
+
+. 
+. * generate my independent variable
+. gen Oil_index = log(Oil_difficulty * price_bp)
+(4,731 missing values generated)
+
+. 
+. drop if year > 1990
+(2,527 observations deleted)
+
+. 
+. *************************************
+. * DESCRIPTIVE PLOTS
+. *************************************
+. 
+. gen mean_Oil_index = 3.919
+
+. bysort country: egen mean_escalations =mean(escal) 
+
+. collapse mean_escalations Oil_index mean_Oil_index avg_on_w avg_off_w avg_tot_w,
+>  by(country)
+
+. keep if mean_escalations>0
+(79 observations deleted)
+
+. gsort mean_escalations avg_tot_w
+
+. drop if avg_tot_w<0.01 
+(30 observations deleted)
+
+. drop if avg_tot_w==.
+(1 observation deleted)
+
+. g count=_n
+
+. egen max= max( count)
+
+. g Attractive_d=0 if Oil_index<mean_Oil_index
+(14 missing values generated)
+
+. replace Attractive_d=1 if Oil_index>mean_Oil_index
+(14 real changes made)
+
+. 
+. separate mean_escalations, by(Attractive_d)
+
+Variable      Storage   Display    Value
+    name         type    format    label      Variable label
+----------------------------------------------------------------------------------
+mean_escalati~0 float   %9.0g                 mean_escalations, Attractive_d == 0
+mean_escalati~1 float   %9.0g                 mean_escalations, Attractive_d == 1
+
+. label var mean_escalations0 "Non Attractive"
+
+. label var mean_escalations1 "Attractive"
+
+. replace country="DR Congo" if country=="Democratic Republic of Congo"
+(1 real change made)
+
+. 
+. graph hbar mean_escalations0 mean_escalations1 if count>max-15, over( country, s
+> ort(mean_escalations) descending label(angle(40) labsize(small))  )  bar(1,color
+> (gs9)) bar(2, color(gs3)) nofill legend(order( 2 "Attractive" 1 "Non Attractive"
+> ))  vertical ytitle("Average conflict escalations (1962-1990)") scheme(sj)
+
+. 
+. graph export "f2.png", replace
+file /Users/jiaxuan/Desktop/teat/f2.png saved as PNG format
+
+. 
+end of do-file
+
+. exit, clear
